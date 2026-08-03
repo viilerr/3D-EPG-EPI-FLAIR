@@ -28,7 +28,6 @@ TE = echo_number * ESP;    %echo time of each echo (ms)
 effectiveEcho = 16;        %echo filling centre of k-space
 effectiveTE = TE(effectiveEcho);
 
-fprintf('Effective TE = %.1f ms\n',effectiveTE)
 %plot echo trains
 % expect WM highest, GM middle, CSF lowest, after every echo decay
 figure
