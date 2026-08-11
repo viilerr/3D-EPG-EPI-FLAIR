@@ -48,7 +48,7 @@ Figure: TI Optimisation
 
 ![TI Optimisation](Figures/TI_Optimisation.png)
 
-This figure presents the residual signal of the tissue of interest (e.g., CSF surrogate) as `TI` varies. It is used to select the inversion time that minimises that tissue's signal. Key validation checks are: the TI sweep range covers the predicted null point, the step size is sufficiently fine to resolve the minimum, and the curve around the minimum is smooth (indicating stable numeric computation rather than noise). A well-formed dip near the analytic null time indicates that inversion recovery and the `Mz_init` calculation are functioning as intended.
+This figure presents the residual signal of the tissue of interest as `TI` varies. It is used to select the inversion time that minimises that tissue's signal. Key validation checks are: the TI sweep range covers the predicted null point, the step size is sufficiently fine to resolve the minimum, and the curve around the minimum is smooth (indicating stable numeric computation rather than noise). A well-formed dip near the analytic null time indicates that inversion recovery and the `Mz_init` calculation are functioning as intended.
 
 
 If the images still do not appear for you on GitHub, try clearing the browser cache or viewing the README directly at:
