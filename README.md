@@ -7,6 +7,33 @@ FLAIR (Fluid-Attenuated Inversion Recovery) uses an inversion pulse followed by 
 3D EPI (3D Echo Planar Imaging) is a volumetric, fast acquisition method that collects partitions along one dimension and EPI readouts along the in-plane axes. The 3D k-space trajectory, echo ordering, and resulting point spread function differ from conventional 2D readouts; the simulator explicitly models readout ordering, gradient blips, and echo timing so the resulting k-space and PSF can be inspected.
 
 Below are the seven figures produced by the simulation. Each figure is shown inline (sourced from the repository's `Figures/` directory) and followed by a detailed explanation of how the figure was produced and what to inspect to validate the simulation.
+## Files
+
+- `EPG_FLAIR.m` simulates either the original FLAIR-prepared TSE pathway or
+a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
+- `testrun.m` runs the 3D FLAIR EPI checks for WM, GM, and CSF and shows all
+plots in one figure window.
+
+## 3D FLAIR EPI model
+
+The EPI mode keeps the FLAIR inversion preparation, then changes the readout
+from a refocused TSE echo train to a dynamic gradient-echo EPI train. This
+means:
+
+- TI controls longitudinal recovery and CSF nulling before excitation.
+- The excitation creates transverse signal proportional to `sin(flipAngle)`.
+- EPI readout decay uses `T2star`, not T2, because gradient-echo EPI is not
+refocused by 180 degree pulses.
+- The EPG state vector is updated during the sequence: inversion pulse, TI
+relaxation, excitation pulse, then each EPI echo.
+- The returned `Fn` output is a ky-kz matrix for the 3D k-space weighting.
+
+Example:
+
+```matlab
+[F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, ...
+'sequence','epi3d','T2star',40,'nPE',64,'nPartitions',32);
+```
 
 Figure: 3D k-space
 
