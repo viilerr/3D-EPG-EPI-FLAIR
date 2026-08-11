@@ -25,35 +25,35 @@ Below are the 7 figures from the original repository and a brief explanation of 
 
 1) 3D k-space
 
-![3D k-space](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/3D%20k-space.png)
+![3D k-space](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/3D_k-space.png)
 
 - Meaning: Visualisation of the 3D k-space trajectory produced by the simulated 3D EPI readout.
 - Why it shows the code works: Confirms that the k-space sampling pattern (phase-encoding and EPI readout axes) matches the expected 3D trajectory used in reconstruction.
 
 2) Dynamic EPG State
 
-![Dynamic EPG State](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Dynamic%20EPG%20State.png)
+![Dynamic EPG State](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Dynamic_EPG_State.png)
 
 - Meaning: Time-resolved map of EPG coherence orders (F and Z states) across the sequence.
 - Why it shows the code works: Demonstrates the code correctly propagates magnetization between coherence orders during RF pulses, gradients, and relaxation.
 
 3) EPI Echo Train
 
-![EPI Echo Train](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/EPI%20Echo%20Train.png)
+![EPI Echo Train](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/EPI_Echo_Train.png)
 
 - Meaning: Simulated echo amplitudes across the EPI readout train.
 - Why it shows the code works: Echo magnitudes and phases follow expected decay and refocusing behavior, validating echo simulation.
 
 4) Effective echo
 
-![Effective echo](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Effective%20echo.png)
+![Effective echo](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Effective_echo.png)
 
 - Meaning: Effective echo timing and amplitude after considering readout and refocusing.
 - Why it shows the code works: Matches theoretical effective echo behavior for TSE/EPI hybrids.
 
 5) FLAIR Recovery
 
-![FLAIR Recovery](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/FLAIR%20Recovery.png)
+![FLAIR Recovery](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/FLAIR_Recovery.png)
 
 - Meaning: Longitudinal magnetisation recovery curve after inversion (shows TI null point for CSF-like T1).
 - Why it shows the code works: Shows inversion recovery and choice of TI can indeed null specific T1 components, confirming FLAIR modelling is correct.
@@ -67,7 +67,7 @@ Below are the 7 figures from the original repository and a brief explanation of 
 
 7) TI Optimisation
 
-![TI Optimisation](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/TI%20Optimisation.png)
+![TI Optimisation](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/TI_Optimisation.png)
 
 - Meaning: Simulation results exploring different inversion times (TI) and their effect on target tissue suppression.
 - Why it shows the code works: Confirms the simulator can be used to choose TI for optimal CSF suppression in FLAIR.
