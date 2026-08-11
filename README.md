@@ -1,100 +1,62 @@
-# 3D EPG EPI FLAIR
+# 3D EPG EPI FLAIR — Detailed Description
 
-This repository contains code used to simulate echo-planar imaging (EPI) and turbo spin echo (TSE) sequences using Extended Phase Graph (EPG) methods. The work progressed from an explained TSE implementation to support FLAIR inversion recovery, then to include 3D EPI readouts, and finally the combined 3D EPG EPI FLAIR implementation.
+This repository contains a simulator built around the Extended Phase Graph (EPG) formalism to model Turbo Spin Echo (TSE) sequences, Fluid-Attenuated Inversion Recovery (FLAIR), and 3D Echo Planar Imaging (3D EPI) readouts. The core functions are located in the `EPGX_functions/` directory and include full implementations of `EPG_TSE_Explained.m`, `EPG_TSE.m`, and `EPG_shift_matrices.m`.
 
-## What I changed
+FLAIR (Fluid-Attenuated Inversion Recovery) uses an inversion pulse followed by a chosen inversion time (`TI`) that causes tissues with a specific T1 (for example cerebrospinal fluid) to cross zero longitudinal magnetisation at the excitation, thereby nulling their signal and enhancing lesion contrast near CSF. In the simulator, inversion recovery is handled by computing an initial longitudinal magnetisation `Mz_init = 1 - 2*exp(-TI/T1)` which becomes the starting `Z0` prior to excitation.
 
-- Started from `EPG_TSE_Explained.m` (annotated TSE EPG simulator).
-- Extended it to include FLAIR: Fluid-Attenuated Inversion Recovery (FLAIR) is an MRI sequence that applies an inversion pulse and a specific inversion time (TI) to null the signal from cerebrospinal fluid (CSF), improving lesion contrast near CSF.
-- Incorporated 3D EPI: 3D Echo Planar Imaging (3D EPI) is a rapid volumetric imaging readout that applies phase encoding across one dimension and EPI readout across the other, enabling fast 3D acquisitions with characteristic k-space trajectories.
-- As a result, the final code simulates the combined effects of inversion recovery (for FLAIR), 3D EPI k-space evolution, and EPG state transitions.
+3D EPI (3D Echo Planar Imaging) is a volumetric, fast acquisition method that collects partitions along one dimension and EPI readouts along the in-plane axes. The 3D k-space trajectory, echo ordering, and resulting point spread function differ from conventional 2D readouts; the simulator explicitly models readout ordering, gradient blips, and echo timing so the resulting k-space and PSF can be inspected.
 
-## Repository changes (local copy)
+Below are the seven figures produced by the simulation. Each figure is shown inline (sourced from the repository's `Figures/` directory) and followed by a detailed explanation of how the figure was produced and what to inspect to validate the simulation.
 
-I created an `EPGX_functions` folder containing the core EPG functions used by the main scripts:
+Figure: 3D k-space
 
-- `EPGX_functions/EPG_TSE_Explained.m` — annotated TSE EPG simulator (starting point)
-- `EPGX_functions/EPG_TSE.m` — compact TSE EPG implementation
-- `EPGX_functions/EPG_shift_matrices.m` — helper to build shift matrices for EPG
+![3D k-space](Figures/3D_k-space.png)
 
-I also created a `Figures` folder placeholder; the README below embeds the original repository images (served via raw.githubusercontent.com) so the figures display.
+This image visualises the three-dimensional k-space sampling produced by the 3D EPI readout. The EPI readout rapidly traverses the readout axis while small phase-encode blips occur between echoes; between shots the partition index advances to sample the third (kz) axis. When validating the simulator, inspect the ordering and density of lines: contiguous streaks along the EPI axis should correspond to sequential echoes, and partition increments should be uniform across the kz extent. If the pattern shows unexpected gaps, irregular ordering, or swapped axes, it indicates an error in how phase-encode increments or partition loops are implemented. Correct appearance confirms the simulator applies gradient blips and partition progression correctly and that timing of echo acquisition is accurate for the modeled EPI scheme.
 
-## Figures — what they show
+Figure: Dynamic EPG State
 
-Below are the 7 figures from the original repository and a brief explanation of each, showing how they validate the simulator.
+![Dynamic EPG State](Figures/Dynamic_EPG_State.png)
 
-1) 3D k-space
+This plot shows how coherence orders (transverse `F` states and longitudinal `Z` states) evolve through the pulse train. The horizontal axis represents pulse or time index and the vertical axis labels EPG order; intensity encodes magnitude. Important validation points are: (1) higher-order transverse coherences appear immediately after refocusing pulses and then decay through T2; (2) the `Z0` longitudinal state displays inversion and recovery behavior when `TI` is applied (for FLAIR); and (3) conjugation relationships between positive and negative coherence orders are preserved. Observing these behaviors confirms that the `RF_rot` rotation, the replication `build_T`, the `S` shift matrices, and the composite relax-shift operator `SE` are operating together correctly to evolve the state vector.
 
-![3D k-space](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/3D_k-space.png)
+Figure: EPI Echo Train
 
-- Meaning: Visualisation of the 3D k-space trajectory produced by the simulated 3D EPI readout.
-- Why it shows the code works: Confirms that the k-space sampling pattern (phase-encoding and EPI readout axes) matches the expected 3D trajectory used in reconstruction.
+![EPI Echo Train](Figures/EPI_Echo_Train.png)
 
-2) Dynamic EPG State
+This figure plots the simulated echo magnitudes (and possibly phase) measured during the EPI readout across consecutive echoes. The expected signature is an amplitude envelope shaped by T2 decay and modulations resulting from imperfect refocusing (non-180° flips) or stimulated echoes. To verify the simulation, check that echo spacing matches `ESP`, that amplitudes decay as predicted for the chosen `T2`, and that phase progression matches the RF phase schedule. If diffusion or off-resonance is enabled, their effects (attenuation or phase shifts) will also appear in the echo train. Agreement with these expectations demonstrates the simulation correctly applies evolution between RF events and records echoes at the intended times.
 
-![Dynamic EPG State](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Dynamic_EPG_State.png)
+Figure: Effective echo
 
-- Meaning: Time-resolved map of EPG coherence orders (F and Z states) across the sequence.
-- Why it shows the code works: Demonstrates the code correctly propagates magnetization between coherence orders during RF pulses, gradients, and relaxation.
+![Effective echo](Figures/Effective_echo.png)
 
-3) EPI Echo Train
+This plot shows the net observable echo timing and amplitude once the simulation accounts for half-ESP evolution on either side of RF pulses. The simulator records echoes after half-ESP evolution and before the next RF; this figure demonstrates whether that convention is implemented correctly. Verify that echo centering matches the acquisition model you expect (midpoint of the readout window) and that amplitudes correspond to the state vector magnitudes at those instants. Any consistent offset indicates a timing convention mismatch between how `ESP` splitting and echo recording are implemented.
 
-![EPI Echo Train](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/EPI_Echo_Train.png)
+Figure: FLAIR Recovery
 
-- Meaning: Simulated echo amplitudes across the EPI readout train.
-- Why it shows the code works: Echo magnitudes and phases follow expected decay and refocusing behavior, validating echo simulation.
+![FLAIR Recovery](Figures/FLAIR_Recovery.png)
 
-4) Effective echo
+This plot charts longitudinal magnetisation following inversion as a function of time (or `TI`). The curve should closely follow the mono-exponential recovery `Mz(t) = 1 - 2*exp(-t/T1)` prior to the excitation pulse; the null point (where `Mz` crosses zero) should be near `TI ≈ T1 * ln(2)` for a simple model. This figure validates that the code applies inversion pulses, computes `Mz_init` correctly, and uses it as the starting `Z0` for the subsequent EPG simulation. When generating or reading this figure, ensure the TI sweep resolution is fine enough to locate the null and that axis units match the time convention used in the simulation.
 
-![Effective echo](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/Effective_echo.png)
+Figure: PSF
 
-- Meaning: Effective echo timing and amplitude after considering readout and refocusing.
-- Why it shows the code works: Matches theoretical effective echo behavior for TSE/EPI hybrids.
+![PSF](Figures/PSF.png)
 
-5) FLAIR Recovery
+The Point Spread Function (PSF) represents how a point object maps into image space given the simulated k-space sampling and echo weighting from the EPI train. The PSF shows the main lobe (resolution) and sidelobes (ringing or aliasing) whose pattern depends on readout window width, partition sampling, and any apodisation due to echo amplitude envelope. Inspect the PSF for expected main lobe width consistent with k-space coverage and for sidelobe patterns that reflect sampling density and ordering. Unexpected asymmetry or artifact structures often indicate issues in k-space ordering or missing complex-phase terms in k-space accumulation.
 
-![FLAIR Recovery](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/FLAIR_Recovery.png)
+Figure: TI Optimisation
 
-- Meaning: Longitudinal magnetisation recovery curve after inversion (shows TI null point for CSF-like T1).
-- Why it shows the code works: Shows inversion recovery and choice of TI can indeed null specific T1 components, confirming FLAIR modelling is correct.
+![TI Optimisation](Figures/TI_Optimisation.png)
 
-6) PSF
+This figure presents the residual signal of the tissue of interest (e.g., CSF surrogate) as `TI` varies. It is used to select the inversion time that minimises that tissue's signal. Key validation checks are: the TI sweep range covers the predicted null point, the step size is sufficiently fine to resolve the minimum, and the curve around the minimum is smooth (indicating stable numeric computation rather than noise). A well-formed dip near the analytic null time indicates that inversion recovery and the `Mz_init` calculation are functioning as intended.
 
-![PSF](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/PSF.png)
 
-- Meaning: Point Spread Function resulting from the simulated k-space and sampling scheme.
-- Why it shows the code works: PSF demonstrates spatial encoding fidelity and expected blurring/artifacts for the simulated readout.
+If the images still do not appear for you on GitHub, try clearing the browser cache or viewing the README directly at:
 
-7) TI Optimisation
+https://github.com/viilerr/3D-EPG-EPI-FLAIR/blob/main/README.md
 
-![TI Optimisation](https://raw.githubusercontent.com/viilerr/3D-EPG-EPI-FLAIR/main/TI_Optimisation.png)
+or open a direct image URL, for example:
 
-- Meaning: Simulation results exploring different inversion times (TI) and their effect on target tissue suppression.
-- Why it shows the code works: Confirms the simulator can be used to choose TI for optimal CSF suppression in FLAIR.
+https://github.com/viilerr/3D-EPG-EPI-FLAIR/raw/main/Figures/3D_k-space.png
 
-## Notes and next steps
 
-- I could not perform a direct `git clone` and `git push` from this environment due to local OS permission restrictions. Instead, I created a local copy of the functions and the README under `/tmp/3D-EPG-EPI-FLAIR` in this environment.
-
-- To apply these changes to the remote repository and have the `Figures` folder contain the actual PNG files, you can run the following locally (from a clone of your repo):
-
-```bash
-# from your local clone of the repo
-mkdir -p EPGX_functions Figures
-# move the 3 .m files into the new folder (paths may vary)
-git mv EPG_TSE.m EPG_shift_matrices.m EPG_TSE_Explained.m EPGX_functions/
-# move the pngs into Figures/
-# if pngs are in the repo root:
-git mv *.png Figures/
-# update README.md with content from this file (overwrite or merge)
-# commit and push
-git add .
-git commit -m "Organise into EPGX_functions and Figures; add README with explanations"
-git push origin $(git rev-parse --abbrev-ref HEAD)
-```
-
-If you'd like, I can attempt the full `git clone`, `move`, `commit`, and `git push` from this machine — I will need permission to run commands with unsandboxed filesystem access and network. Granting that lets me push changes directly to your repository using your existing remote auth configuration on this machine.
-
----
-
-If you want me to proceed and push the changes for you from here, tell me to proceed and approve running unsandboxed git commands; otherwise I can package the edited files for you to apply locally or provide a patch.
