@@ -132,11 +132,11 @@ end
 N = 3*(kmax+1); %every order contains F+,F-,Z and +1 accounts for F0
 FF = zeros(N,1); %create column vector 
 FF(3) = opts.zinit; %set equilibrium longitudinal magnetisation
-
-% Dynamic FLAIR preparation in EPG states:
-% 1) invert Z0 with a 180 degree RF pulse,
-% 2) relax during TI,
-% 3) excite with the imaging flip angle.
+% 1. 180° inversion pulse → creates the inverted longitudinal magnetisation.
+% 2. T2/T1 relaxation during TI → magnetisation evolves during the inversion time. The transverse components decay according to T2, while longitudinal recovery occurs according to T1.
+% 3. Imaging excitation flip angle → converts the remaining longitudinal magnetisation into transverse magnetisation.
+% 4. T2 preparation / echo evolution → if by "T2 prep" you mean an actual T2-preparation module, this is a separate RF preparation module and should not automatically be inserted into a standard FLAIR sequence.
+FF = flair_prep(FF,TI,T1,T2,kmax);
 FF = apply_rf(FF,RF_rot(pi,0),kmax); %applying RF pulse to every EPG coherence state: creates RF rotation matrix, applies it to every coherence order, Rf_rot is 3x3 rotation matrix representing 180 inversion pulse with 0 phase.
 FF = relax_epg(FF,TI,T1,T2,kmax); %immediately after inversion letting magnetization evolve naturally during TI
 Mz_before_excitation = real(FF(3)); %stores longitudinal magnetization immediatelly before excitation
