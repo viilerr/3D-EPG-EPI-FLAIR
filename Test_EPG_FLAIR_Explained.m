@@ -8,6 +8,8 @@ close all
 flipAngle = deg2rad(90);
 ESP = 0.8; % EPI echo spacing in ms
 nPE = 64; % ky lines in the EPI readout
+nSegments = 3; % three EPI shots/segments: 64 x 3 = 192 lines
+readoutSamples = 64; % points along each acquired EPI line
 nPartitions = 32; % kz partitions in the 3D volume
 effectiveEcho = floor(nPE/2) + 1;
 TI = 3000; % close to CSF null: 4300*log(2) = 2980 ms
@@ -21,12 +23,29 @@ for ii = 1:numel(tissue)
 [signals(ii).F0,signals(ii).K3D,signals(ii).Zn,signals(ii).F,signals(ii).info] = EPG_FLAIR(flipAngle,ESP,tissue(ii).T1,tissue(ii).T2,TI,'sequence','epi3d','T2star',tissue(ii).T2star,'nPE',nPE,'nPartitions',nPartitions,'effectiveEcho',effectiveEcho);
 end % run function 3 times for WM,GM,CSF
 
+function K = fill_epi2d_kspace(echoTrain,nSegments,readoutEnvelope)
+nPE = numel(echoTrain);
+K = zeros(nPE*nSegments,numel(readoutEnvelope));
+for segment = 1:nSegments
+    lines = (segment-1)*nPE + (1:nPE);
+    K(lines,:) = echoTrain(:)*readoutEnvelope;
+end
+end
+
 echoNumber = signals(1).info.echoNumber; %take escho number vector from WM simulation
 effectiveTE = signals(1).info.effectiveTE; %extract effective TE
-ky = signals(1).info.kyPositions;
-kz = signals(1).info.kzPositions;
-[KY,KZ] = ndgrid(ky/max(abs(ky)),kz/max(abs(kz))); %create normalized 2D grid, take largest magnitude of ky, normalize and same for kz
-centralKspaceWeight = exp(-3.5*(KY.^2 + KZ.^2)); %additional test weighting. At centre ky=kz. ky^2+kz^2=0 so e^0=1 so at edges exponenet becomes more negative and weighting decreses. Factor 3.5 controls how quickly weighting falls off. Not part of EPG, imposed for visualisation
+totalKspaceLines = nPE*nSegments;
+kx2d = linspace(-0.5,0.5,readoutSamples);
+ky2d = linspace(-0.5,0.5,totalKspaceLines);
+readoutEnvelope = exp(-18*kx2d.^2);
+readoutEnvelope = readoutEnvelope/max(readoutEnvelope);
+K2D = cell(1,numel(tissue));
+PSF2D = cell(1,numel(tissue));
+for ii = 1:numel(tissue)
+    K2D{ii} = fill_epi2d_kspace(abs(signals(ii).F0),nSegments,readoutEnvelope);
+    psf = abs(fftshift(ifft2(ifftshift(K2D{ii}))));
+    PSF2D{ii} = psf/max(psf(:));
+end
 
 wmEff = abs(signals(1).F0(effectiveEcho)); %take WM signal at effective echo
 gmEff = abs(signals(2).F0(effectiveEcho));
@@ -88,35 +107,49 @@ legend({tissue.short},'Location','best')
 grid on
 box on
 
-% 4. Tissue signal at the k-space centre: shows WM,GM, CSF signal at
-% the centre of k-space, image contrast is mostly determines by cenbtre of
-% k-space, if CSF is supressed here, the image is FLAIR-weighted
-tab = uitab(tabs,'Title','4 Effective echo');
-axes('Parent',tab)
-b = bar([wmEff gmEff csfEff],'FaceColor','flat');
-for ii = 1:numel(tissue)
-b.CData(ii,:) = tissue(ii).color;
+% 4. 2D EPI k-space trajectory and WM/GM signal filling
+tab = uitab(tabs,'Title','4 2D k-space');
+tl = tiledlayout(tab,1,2,'TileSpacing','compact','Padding','compact');
+for ii = 1:2
+    ax = nexttile(tl,ii);
+    hold(ax,'on')
+    values = repmat(abs(signals(ii).F0(:)),nSegments,1);
+    values = values/max(values);
+    for lineIdx = 1:totalKspaceLines
+        if mod(lineIdx,2) == 1
+            xLine = [-0.5 0.5];
+        else
+            xLine = [0.5 -0.5];
+        end
+        yLine = ky2d(lineIdx)*[1 1];
+        lineColor = 0.15 + 0.85*values(lineIdx)*tissue(ii).color;
+        plot(ax,xLine,yLine,'LineWidth',1.3,'Color',lineColor)
+    end
+    xline(ax,0,':','Color',[0.20 0.20 0.20])
+    yline(ax,0,':','Color',[0.20 0.20 0.20])
+    axis(ax,[-0.55 0.55 -0.55 0.55])
+    xlabel(ax,'k_x readout')
+    ylabel(ax,'k_y phase encode')
+    title(ax,sprintf('4. %s 2D zigzag: 64 x 3 = 192 lines',tissue(ii).short))
+    grid(ax,'on')
+    box(ax,'on')
 end
-set(gca,'XTickLabel',{tissue.short})
-ylabel('|F_0| at k-space centre')
-title(sprintf('4. Contrast %.3f, CSF ratio %.3f',contrastWMGM,csfRatio))
-grid on
-box on
 
-% 5. 3D ky-kz weighting: shows ky-kz matrix, 3D EPI means
-% we are filling both in-plane phase encoding ky and 3D partition encoding
-% kz. 
-tab = uitab(tabs,'Title','5 3D k-space');
-axes('Parent',tab)
-imagesc(kz,ky,centralKspaceWeight)
-axis image
-colorbar
-colormap(gca,'parula')
-xlabel('k_z partition')
-ylabel('k_y line')
-title('5. 3D k-space weighting: centre bright, outer k-space darker')
-grid on
-box on
+% 5. 2D point-spread function from the filled EPI k-space
+tab = uitab(tabs,'Title','5 PSF k-space');
+tl = tiledlayout(tab,1,2,'TileSpacing','compact','Padding','compact');
+for ii = 1:2
+    ax = nexttile(tl,ii);
+    imagesc(ax,kx2d,ky2d,PSF2D{ii})
+    axis(ax,'image')
+    colorbar(ax)
+    colormap(ax,'parula')
+    xlabel(ax,'Readout position')
+    ylabel(ax,'Phase position')
+    title(ax,sprintf('5. %s 2D PSF from EPI k-space',tissue(ii).short))
+    grid(ax,'on')
+    box(ax,'on')
+end
 
 % 6. Point-spread function from EPI T2* decay: shows PSF, EPI signal decay
 % across ky causes blurring, PSF shows how much a point spreads in the
