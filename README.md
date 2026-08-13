@@ -64,13 +64,13 @@ This plot shows how coherence orders (transverse `F` states and longitudinal `Z`
 
 ## Figure 4: 2D WM/GM k-space
 
-![2D k-space](Figures/k-space.png)
+![2D k-space](Figures/2D%20k-space.png)
 
 Figure 4  shows the 2D EPI k-space trajectory for WM and GM separately. Each panel is one tissue type. The plot has 64 x 3 = 192 phase-encoding lines, matching what your supervisor described. The line direction alternates left-to-right then right-to-left, so it looks like a zigzag EPI readout. The brightness/color strength of each line comes from the simulated 64-point EPI signal train for that tissue, repeated across the 3 segments. This is useful because it shows how the WM and GM signals are actually placed into k-space, rather than just plotting signal versus echo number.
 
 ## Figure 5: PSF k-space
 
-![PSF k-space](Figures/PSF k-space.png)
+![PSF k-space](Figures/PSF%20k-space.png)
 
 Figure 5 shows the 2D PSF calculated from the filled 2D k-space in Figure 5. In other words, after using the WM/CM EPI signals f weight k-space, the code applies a 2D inverse Fourier transform to see how a point object would appear in image space. This is useful because it tells you about image blurring: if the k-space weighting decays strongly across the EPI readout, the PS becomes broader, meaning more blur. Comparing WM and GM PSFs shows whether their different relaxation values produce different spatial blurring.
 
