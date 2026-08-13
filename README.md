@@ -1,10 +1,14 @@
-# 3D EPG EPI FLAIR 
+# EPG-FLAIR
+
+Adaptation of TSE EPG code to include FLAIR, plus a FLAIR EPI test
+workflow.
+
 ## Files
 
 - `EPG_FLAIR.m` simulates either the original FLAIR-prepared TSE pathway or
-a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
-- `testrun.m` runs the 3D FLAIR EPI checks for WM, GM, and CSF and shows all
-plots in one figure window.
+  a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
+- `testrun.m` runs the FLAIR EPI checks for WM, GM, and CSF and shows all
+  plots in one figure window.
 
 ## 3D FLAIR EPI model
 
@@ -14,16 +18,23 @@ means:
 
 - TI controls longitudinal recovery and CSF nulling before excitation.
 - The excitation creates transverse signal proportional to `sin(flipAngle)`.
+- FLAIR preparation is included in both TSE and EPI through the shared
+  `flair_prep` helper: 180 degree inversion, TI relaxation with T1/T2, then
+  imaging excitation.
 - EPI readout decay uses `T2star`, not T2, because gradient-echo EPI is not
-refocused by 180 degree pulses.
+  refocused by 180 degree pulses.
 - The EPG state vector is updated during the sequence: inversion pulse, TI
-relaxation, excitation pulse, then each EPI echo.
+  relaxation, excitation pulse, then each EPI echo.
 - The returned `Fn` output is a ky-kz matrix for the 3D k-space weighting.
+- `testrun.m` also builds a 2D 64 x 3 EPI example: 64 signal values from the
+  WM/GM echo trains are repeated over 3 segments to fill 192 zigzag k-space
+  lines, then a 2D PSF is calculated from that filled k-space.
 
 Example:
 
 ```matlab
-[F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, 'sequence','epi3d','T2star',40,'nPE',64,'nPartitions',32);
+[F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, ...
+    'sequence','epi3d','T2star',40,'nPE',64,'nPartitions',32);
 ```
 This repository contains a simulator built around the Extended Phase Graph (EPG) formalism to model Turbo Spin Echo (TSE) sequences, Fluid-Attenuated Inversion Recovery (FLAIR), and 3D Echo Planar Imaging (3D EPI) readouts. The core functions are located in the `EPGX_functions/` directory and include full implementations of `EPG_TSE_Explained.m`, `EPG_TSE.m`, and `EPG_shift_matrices.m`.
 
