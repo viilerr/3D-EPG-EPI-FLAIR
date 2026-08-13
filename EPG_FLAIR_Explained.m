@@ -132,6 +132,8 @@ end
 N = 3*(kmax+1); %every order contains F+,F-,Z and +1 accounts for F0
 FF = zeros(N,1); %create column vector 
 FF(3) = opts.zinit; %set equilibrium longitudinal magnetisation
+
+% Dynamic FLAIR preparation in EPG states:
 % 1. 180° inversion pulse → creates the inverted longitudinal magnetisation.
 % 2. T2/T1 relaxation during TI → magnetisation evolves during the inversion time. The transverse components decay according to T2, while longitudinal recovery occurs according to T1.
 % 3. Imaging excitation flip angle → converts the remaining longitudinal magnetisation into transverse magnetisation.
