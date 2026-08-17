@@ -45,6 +45,7 @@ opts.kmax = [];
 opts.diff = [];
 opts.zinit = 1;
 opts.T2star = [];
+opts.T2prepTE = 0;
 opts.nPE = [];
 opts.nPartitions = 32;
 opts.effectiveEcho = [];
@@ -67,6 +68,8 @@ case 'zinit'
 opts.zinit = value;
 case {'t2star','t2s','t2prime'}
 opts.T2star = value;
+case {'t2prep','t2prepte','t2preparation'}
+opts.T2prepTE = value;
 case {'npe','etl','echotrainlength'}
 opts.nPE = value;
 case {'npartitions','nz','nslices'}
@@ -137,9 +140,9 @@ FF(3) = opts.zinit; %set equilibrium longitudinal magnetisation
 % 1. 180° inversion pulse → creates the inverted longitudinal magnetisation.
 % 2. T2/T1 relaxation during TI → magnetisation evolves during the inversion time. The transverse components decay according to T2, while longitudinal recovery occurs according to T1.
 % 3. Imaging excitation flip angle → converts the remaining longitudinal magnetisation into transverse magnetisation.
-% 4. T2 preparation / echo evolution → if by "T2 prep" you mean an actual T2-preparation module, this is a separate RF preparation module and should not automatically be inserted into a standard FLAIR sequence.
-FF = flair_prep(FF,TI,T1,T2,kmax);
-FF = apply_rf(FF,RF_rot(pi,0),kmax); %applying RF pulse to every EPG coherence state: creates RF rotation matrix, applies it to every coherence order, Rf_rot is 3x3 rotation matrix representing 180 inversion pulse with 0 phase.
+% 4. T2 preparation/echo evolution → if by "T2 prep" you mean an actual T2 preparation module, this is a separate RF preparation module and should not automatically be inserted into a standard FLAIR sequence.
+[FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,opts.T2prepTE);
+FF = apply_rf(FF,RF_rot(alpha, phi),kmax); %applying RF pulse to every EPG coherence state: creates RF rotation matrix, applies it to every coherence order, Rf_rot is 3x3 rotation matrix representing 180 inversion pulse with 0 phase.
 FF = relax_epg(FF,TI,T1,T2,kmax); %immediately after inversion letting magnetization evolve naturally during TI
 Mz_before_excitation = real(FF(3)); %stores longitudinal magnetization immediatelly before excitation
 
@@ -153,7 +156,7 @@ F = zeros(N,nPE); %creates matrix that stores the complete EPG state after every
 F0 = zeros(1,nPE);%creates vector staring the observable MRI signal for every echo
 
 for echo = 1:nPE
-% One EPI echo is represented as a balanced gradient echo: dephase for half ESP, rephase for half ESP, then record F0.
+%one EPI echo is represented as a balanced gradient echo: dephase for half ESP, rephase for half ESP, then record F0.
 FF = relax_epg(FF,0.5*ESP,T1,T2star,kmax); %now use T2*, not T2, because gradient echoes are sensitive to field inhomogeneities.
 FF = Splus*FF; %gradient shifts coherenec order
 FF = relax_epg(FF,0.5*ESP,T1,T2star,kmax); %magnetixation continues decaying while travelling towards echo
@@ -191,6 +194,9 @@ info.echoNumber = echoNumber;
 info.effectiveEcho = effectiveEcho;
 info.effectiveTE = echoTimes(effectiveEcho);
 info.T2star = T2star;
+info.T2prepTE = opts.T2prepTE;
+info.MzAfterT2Prep = prepInfo.MzAfterT2Prep;
+info.MzAfterInversion = prepInfo.MzAfterInversion;
 info.MzBeforeExcitation = Mz_before_excitation;
 info.MxyAfterExcitation = Mxy_after_excitation;
 info.MzAfterExcitation = Mz_after_excitation;
@@ -258,8 +264,8 @@ F = zeros([N np-1]);
 FF = zeros([N 1]);
 FF(3) = opts.zinit;
 
-if TI > 0
-FF = flair_prep(FF,TI,T1,T2);
+if TI > 0 || opts.T2prepTE > 0
+    [FF,~] = flair_prep(FF,TI,T1,T2,kmax,opts.T2prepTE);
 end
 
 A = RF_rot(alpha(1),phi(1));
@@ -291,14 +297,27 @@ Fn = F(idx,:);
 Fn(kvals<0,:) = conj(Fn(kvals<0,:));
 Zn = F(3:3:end,:);
 
-function FF = flair_prep(FF,TI,T1,T2)
+function [FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,T2prepTE)
+if nargin < 6 || isempty(T2prepTE)
+    T2prepTE = 0;
+end
+if T2prepTE < 0
+    error('T2prepTE must be zero or positive.');
+end
+if T2prepTE > 0
+    T2prepDecay = exp(-T2prepTE/T2);
+    for k = 0:kmax
+        idx = 3*k + (1:3);
+        FF(idx(3)) = T2prepDecay*FF(idx(3));
+    end
+end
+prepInfo.MzAfterT2Prep = real(FF(3));
+
 Ainv = RF_rot(pi,0);
-FF(1:3) = Ainv*FF(1:3);
-E1_TI = exp(-TI/T1);
-E2_TI = exp(-TI/T2);
-FF(1) = E2_TI*FF(1);
-FF(2) = E2_TI*FF(2);
-FF(3) = E1_TI*FF(3) + (1-E1_TI);
+FF = apply_rf(FF,Ainv,kmax);
+prepInfo.MzAfterInversion = real(FF(3))
+if TI > 0
+    FF = relax_epg(FF,TI,T1,T2,kmax);
 end
 
 function build_T(AA)
