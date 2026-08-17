@@ -69,7 +69,9 @@ centre echo.
 `64 x 3 = 192` lines.
 - Figure 6, `PSF`: computes the 2D point-spread function from the filled 2D
 k-space to show the spatial blurring caused by EPI signal weighting.
-- Figure 7, `TI optimisation`: sweeps TI to compare WM-GM contrast and CSF
+- Figure 7, `PSF k-space`: shows the 2D PSF in k-space before the image-domain
+point spread function is calculated.
+- Figure 8, `TI optimisation`: sweeps TI to compare WM-GM contrast and CSF
 suppression.
 
 This repository contains a simulator built around the Extended Phase Graph (EPG) formalism to model Turbo Spin Echo (TSE) sequences, Fluid-Attenuated Inversion Recovery (FLAIR), and 3D Echo Planar Imaging (3D EPI) readouts. The core functions are located in the `EPGX_functions/` directory and include full implementations of `EPG_TSE_Explained.m`, `EPG_TSE.m`, and `EPG_shift_matrices.m`.
@@ -78,13 +80,13 @@ FLAIR (Fluid-Attenuated Inversion Recovery) uses an inversion pulse followed by 
 
 3D EPI (3D Echo Planar Imaging) is a volumetric, fast acquisition method that collects partitions along one dimension and EPI readouts along the in-plane axes. The 3D k-space trajectory, echo ordering, and resulting point spread function differ from conventional 2D readouts; the simulator explicitly models readout ordering, gradient blips, and echo timing so the resulting k-space and PSF can be inspected.
 
-Below are the seven figures produced by the simulation. Each figure is shown inline (sourced from the repository's `Figures/` directory) and followed by a detailed explanation of how the figure was produced and what to inspect to validate the simulation.
+Below are the eight figures produced by the simulation. Each figure is shown inline (sourced from the repository's `Figures/` directory) and followed by a detailed explanation of how the figure was produced and what to inspect to validate the simulation.
 
-## Figure 1: FLAIR Recovery
+## Figure 1: FLAIR Recovery with EPI
 
-![FLAIR Recovery](Figures/FLAIR_Recovery.png)
+![FLAIR Recovery](Figures/FLAIR_Recovery_EPI.png)
 
-This plot charts longitudinal magnetisation following inversion as a function of time (or `TI`). The curve should closely follow the mono-exponential recovery `Mz(t) = 1 - 2*exp(-t/T1)` prior to the excitation pulse; the null point (where `Mz` crosses zero) should be near `TI ≈ T1 * ln(2)` for a simple model. This figure validates that the code applies inversion pulses, computes `Mz_init` correctly, and uses it as the starting `Z0` for the subsequent EPG simulation. When generating or reading this figure, ensure the TI sweep resolution is fine enough to locate the null and that axis units match the time convention used in the simulation.
+This plot charts the T2-prepared FLAIR inversion-recovery curve in the EPI sequence as longitudinal magnetisation recovers after inversion. The sequence includes the EPI readout after excitation, so the recovery curve is followed by the echo-train response rather than a purely TSE-only timing model. The curve should remain close to the analytic form `Mz(t) = 1 - 2*exp(-t/T1)` before excitation, and the null point should still occur near `TI ≈ T1 * ln(2)` in the simple case. This figure validates that the code applies the inversion pulse correctly, computes `Mz_init` correctly, and then feeds that recovered `Z0` state into the subsequent EPI simulation.
 
 ## Figure 2: EPI Echo Train
 
@@ -98,25 +100,31 @@ This figure plots the simulated echo magnitudes (and possibly phase) measured du
 
 This plot shows how coherence orders (transverse `F` states and longitudinal `Z` states) evolve through the pulse train. The horizontal axis represents pulse or time index and the vertical axis labels EPG order; intensity encodes magnitude. Important validation points are: (1) higher-order transverse coherences appear immediately after refocusing pulses and then decay through T2; (2) the `Z0` longitudinal state displays inversion and recovery behavior when `TI` is applied (for FLAIR); and (3) conjugation relationships between positive and negative coherence orders are preserved. Observing these behaviors confirms that the `RF_rot` rotation, the replication `build_T`, the `S` shift matrices, and the composite relax-shift operator `SE` are operating together correctly to evolve the state vector.
 
-## Figure 4: 2D WM/GM k-space
+## Figure 4: Effective echo
+
+![Effective echo](Figures/Effective%20echo.png)
+
+This figure compares the effective echo amplitude for WM, GM, and CSF at the central k-space echo of the EPI trajectory. It shows how the signal weighting at the echo centre changes with tissue-specific `T1`, `T2`, and `T2*` values and how that translates into the contrast seen in the reconstructed image. Inspect the relative peak amplitudes, the central decay behaviour, and the ordering of the curves across tissues to confirm that the EPI readout is being weighted correctly before the k-space data are assembled.
+
+## Figure 5: 2D WM/GM k-space
 
 ![2D k-space](Figures/2D%20k-space.png)
 
-Figure 4  shows the 2D EPI k-space trajectory for WM and GM separately. Each panel is one tissue type. The plot has 64 x 3 = 192 phase-encoding lines. The line direction alternates left-to-right then right-to-left, so it looks like a zigzag EPI readout. The brightness/color strength of each line comes from the simulated 64-point EPI signal train for that tissue, repeated across the 3 segments. This is useful because it shows how the WM and GM signals are actually placed into k-space, rather than just plotting signal versus echo number.
+Figure 5 shows the 2D EPI k-space trajectory for WM and GM separately. Each panel is one tissue type. The plot has 64 x 3 = 192 phase-encoding lines. The line direction alternates left-to-right then right-to-left, so it looks like a zigzag EPI readout. The brightness/color strength of each line comes from the simulated 64-point EPI signal train for that tissue, repeated across the 3 segments. This is useful because it shows how the WM and GM signals are actually placed into k-space, rather than just plotting signal versus echo number.
 
-## Figure 5: PSF k-space
+## Figure 6: PSF k-space
 
 ![PSF k-space](Figures/PSF%20k-space.png)
 
-Figure 5 shows the 2D PSF calculated from the filled 2D k-space in Figure 5. In other words, after using the WM/CM EPI signals f weight k-space, the code applies a 2D inverse Fourier transform to see how a point object would appear in image space. This is useful because it tells you about image blurring: if the k-space weighting decays strongly across the EPI readout, the PS becomes broader, meaning more blur. Comparing WM and GM PSFs shows whether their different relaxation values produce different spatial blurring.
+Figure 6 shows the 2D PSF in k-space calculated from the filled 2D EPI trajectory. After the WM/GM signal train is weighted into k-space, the code examines the spatial frequency distribution to show how the echo train shapes the encoded signal before the inverse transform. This is useful because it reveals how strongly the EPI weighting tapers across the readout and whether the resulting k-space coverage preserves the expected signal distribution for each tissue.
 
-## Figure 6: PSF
+## Figure 7: PSF
 
 ![PSF](Figures/PSF.png)
 
 The Point Spread Function (PSF) represents how a point object maps into image space given the simulated k-space sampling and echo weighting from the EPI train. The PSF shows the main lobe (resolution) and sidelobes (ringing or aliasing) whose pattern depends on readout window width, partition sampling, and any apodisation due to echo amplitude envelope. Inspect the PSF for expected main lobe width consistent with k-space coverage and for sidelobe patterns that reflect sampling density and ordering. Unexpected asymmetry or artifact structures often indicate issues in k-space ordering or missing complex-phase terms in k-space accumulation.
 
-## Figure 7: TI Optimisation
+## Figure 8: TI Optimisation
 
 ![TI Optimisation](Figures/TI_Optimisation.png)
 
