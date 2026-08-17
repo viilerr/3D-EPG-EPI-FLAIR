@@ -1,7 +1,6 @@
 # EPG-FLAIR
 
-Adaptation of TSE EPG code to include FLAIR, plus a FLAIR EPI test
-workflow.
+Adaptation of TSE EPG code to include FLAIR, plus a FLAIR EPI test workflow. This is a continuation of [EPG-X](https://github.com/mriphysics/EPG-X?utm_source=chatgpt.com), extending TSE simulation to TSE FLAIR and then to EPI FLAIR using the EPG structure and principles learned from [EPG repository](https://github.com/imr-framework/epg?utm_source=chatgpt.com).
 
 ## Files
 
@@ -140,3 +139,42 @@ or open a direct image URL, for example:
 https://github.com/viilerr/3D-EPG-EPI-FLAIR/raw/main/Figures/3D_k-space.png
 
 
+
+---
+
+## Getting Started with MATLAB
+
+### How to Open and Use in MATLAB
+
+1. **Clone or download the repository** to your local machine:
+   ```bash
+   git clone https://github.com/viilerr/3D-EPG-EPI-FLAIR.git
+   cd 3D-EPG-EPI-FLAIR
+   ```
+
+2. **Open MATLAB** and navigate to the repository folder:
+   ```matlab
+   cd /path/to/3D-EPG-EPI-FLAIR
+   ```
+
+3. **Add the repository to your MATLAB path** (optional but recommended):
+   ```matlab
+   addpath(genpath(pwd))
+   ```
+
+4. **Run the test script** to visualize and validate the simulations:
+   ```matlab
+   Test_EPG_FLAIR_Explained
+   ```
+   This generates eight interactive figures showing FLAIR recovery, EPI readout, EPG state evolution, k-space trajectories, and point-spread functions.
+
+5. **Use the core function** in your own code:
+   ```matlab
+   [F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, ...
+       'sequence','epi3d','T2star',40,'T2prepTE',50, ...
+       'nPE',64,'nPartitions',32);
+   ```
+
+### Requirements
+- MATLAB R2018b or later
+- No additional toolboxes required
