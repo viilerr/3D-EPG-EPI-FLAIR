@@ -142,11 +142,8 @@ FF(3) = opts.zinit; %set equilibrium longitudinal magnetisation
 % 3. Imaging excitation flip angle → converts the remaining longitudinal magnetisation into transverse magnetisation.
 % 4. T2 preparation/echo evolution → if by "T2 prep" you mean an actual T2 preparation module, this is a separate RF preparation module and should not automatically be inserted into a standard FLAIR sequence.
 [FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,opts.T2prepTE);
-FF = apply_rf(FF,RF_rot(alpha, phi),kmax); %applying RF pulse to every EPG coherence state: creates RF rotation matrix, applies it to every coherence order, Rf_rot is 3x3 rotation matrix representing 180 inversion pulse with 0 phase.
-FF = relax_epg(FF,TI,T1,T2,kmax); %immediately after inversion letting magnetization evolve naturally during TI
 Mz_before_excitation = real(FF(3)); %stores longitudinal magnetization immediatelly before excitation
-
-FF = apply_rf(FF,RF_rot(alpha,phi),kmax); %apply excitation pulse
+FF = apply_rf(FF,RF_rot(alpha, phi),kmax); %applying RF pulse to every EPG coherence state: creates RF rotation matrix, applies it to every coherence order, Rf_rot is 3x3 rotation matrix representing 180 inversion pulse with 0 phase.
 Mxy_after_excitation = FF(1);
 Mz_after_excitation = real(FF(3));
 
@@ -201,7 +198,7 @@ info.MzBeforeExcitation = Mz_before_excitation;
 info.MxyAfterExcitation = Mxy_after_excitation;
 info.MzAfterExcitation = Mz_after_excitation;
 info.kmax = kmax;
-info.FLAIRPrep = 'dynamic EPG inversion pulse plus TI relaxation';
+info.FLAIRPrep = 'dynamic EPG T2 prep, inversion pulse, and TI relaxation with T1/T2';
 info.EPIReadout = 'dynamic EPG balanced dephase/rephase echo loop';
 info.kyOrder = kyOrder;
 info.kzOrder = kzOrder;
@@ -297,6 +294,14 @@ Fn = F(idx,:);
 Fn(kvals<0,:) = conj(Fn(kvals<0,:));
 Zn = F(3:3:end,:);
 
+function build_T(AA)
+        ksft = 3*(3*(kmax+1)+1);
+        for i2 = 1:9
+            T(i1(i2):ksft:end) = AA(i2);
+        end
+    end
+end
+
 function [FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,T2prepTE)
 if nargin < 6 || isempty(T2prepTE)
     T2prepTE = 0;
@@ -304,6 +309,7 @@ end
 if T2prepTE < 0
     error('T2prepTE must be zero or positive.');
 end
+
 if T2prepTE > 0
     T2prepDecay = exp(-T2prepTE/T2);
     for k = 0:kmax
@@ -315,16 +321,10 @@ prepInfo.MzAfterT2Prep = real(FF(3));
 
 Ainv = RF_rot(pi,0);
 FF = apply_rf(FF,Ainv,kmax);
-prepInfo.MzAfterInversion = real(FF(3))
+prepInfo.MzAfterInversion = real(FF(3));
+
 if TI > 0
     FF = relax_epg(FF,TI,T1,T2,kmax);
-end
-
-function build_T(AA)
-ksft = 3*(3*(kmax+1)+1);
-for i2 = 1:9
-T(i1(i2):ksft:end) = AA(i2);
-end
 end
 end
 
