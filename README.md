@@ -6,9 +6,9 @@ workflow.
 ## Files
 
 - `EPG_FLAIR.m` simulates either the original FLAIR-prepared TSE pathway or
-  a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
+a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
 - `testrun.m` runs the FLAIR EPI checks for WM, GM, and CSF and shows all
-  plots in one figure window.
+plots in one figure window.
 
 ## 3D FLAIR EPI model
 
@@ -19,22 +19,59 @@ means:
 - TI controls longitudinal recovery and CSF nulling before excitation.
 - The excitation creates transverse signal proportional to `sin(flipAngle)`.
 - FLAIR preparation is included in both TSE and EPI through the shared
-  `flair_prep` helper: 180 degree inversion, TI relaxation with T1/T2, then
-  imaging excitation.
+`flair_prep` helper: optional T2 prep, 180 degree inversion, TI relaxation
+with T1/T2, then imaging excitation.
+- With T2 prep enabled, the inversion-recovery curve starts above `-1`
+because T2 prep attenuates Mz before the inversion pulse. For example,
+`T2prepTE = 50 ms` gives WM `MzAfterInversion = -exp(-50/119) = -0.657`.
 - EPI readout decay uses `T2star`, not T2, because gradient-echo EPI is not
-  refocused by 180 degree pulses.
+refocused by 180 degree pulses.
 - The EPG state vector is updated during the sequence: inversion pulse, TI
-  relaxation, excitation pulse, then each EPI echo.
+relaxation, excitation pulse, then each EPI echo.
 - The returned `Fn` output is a ky-kz matrix for the 3D k-space weighting.
 - `testrun.m` also builds a 2D 64 x 3 EPI example: 64 signal values from the
-  WM/GM echo trains are repeated over 3 segments to fill 192 zigzag k-space
-  lines, then a 2D PSF is calculated from that filled k-space.
+WM/GM echo trains are repeated over 3 segments to fill 192 zigzag k-space
+lines, then a 2D PSF is calculated from that filled k-space.
 
 Example:
 
 ```matlab
-[F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, 'sequence','epi3d','T2star',40,'nPE',64,'nPartitions',32);
+[F0,K3D,Zn,F,info] = EPG_FLAIR(deg2rad(90),0.8,T1,T2,3000, ...
+'sequence','epi3d','T2star',40,'T2prepTE',50, ...
+'nPE',64,'nPartitions',32);
 ```
+
+## Figure guide
+
+`testrun.m` uses `T2prepTE = 50 ms`, so the recovery curves do not start at
+`-1`. The T2-prep block attenuates longitudinal magnetisation by
+`exp(-T2prepTE/T2)` before inversion, then inversion flips it negative. With
+the current tissue values:
+
+- WM starts at `Mz = -exp(-50/119) = -0.657`.
+- GM starts at `Mz = -exp(-50/99) = -0.603`.
+- CSF starts at `Mz = -exp(-50/1200) = -0.959`.
+
+These values are all above `-1`, and Figure 1 marks the starting points plus
+a `-1` reference line so the T2-prep effect is visible.
+
+- Figure 1, `FLAIR + EPI`: one continuous timeline. Solid curves show
+T2-prepared FLAIR recovery from the post-inversion value to TI, dotted
+segments show excitation into transverse signal, and dashed curves show
+the EPI readout immediately after excitation.
+- Figure 2, `EPI readout`: the same EPI echo train shown separately against
+echo number/ky line, making the T2star-driven signal decay easier to see.
+- Figure 3, `Dynamic EPG states`: tracks the longitudinal `Z0` state during
+the EPI readout after FLAIR preparation.
+- Figure 4, `Effective echo`: compares WM, GM, and CSF signal at the k-space
+centre echo.
+- Figure 5, `2D k-space`: fills a 2D zigzag EPI trajectory for WM and GM using
+`64 x 3 = 192` lines.
+- Figure 6, `PSF`: computes the 2D point-spread function from the filled 2D
+k-space to show the spatial blurring caused by EPI signal weighting.
+- Figure 7, `TI optimisation`: sweeps TI to compare WM-GM contrast and CSF
+suppression.
+
 This repository contains a simulator built around the Extended Phase Graph (EPG) formalism to model Turbo Spin Echo (TSE) sequences, Fluid-Attenuated Inversion Recovery (FLAIR), and 3D Echo Planar Imaging (3D EPI) readouts. The core functions are located in the `EPGX_functions/` directory and include full implementations of `EPG_TSE_Explained.m`, `EPG_TSE.m`, and `EPG_shift_matrices.m`.
 
 FLAIR (Fluid-Attenuated Inversion Recovery) uses an inversion pulse followed by a chosen inversion time (`TI`) that causes tissues with a specific T1 (for example cerebrospinal fluid) to cross zero longitudinal magnetisation at the excitation, thereby nulling their signal and enhancing lesion contrast near CSF. In the simulator, inversion recovery is handled by computing an initial longitudinal magnetisation `Mz_init = 1 - 2*exp(-TI/T1)` which becomes the starting `Z0` prior to excitation.
