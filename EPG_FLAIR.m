@@ -33,6 +33,7 @@ opts.kmax = [];
 opts.diff = [];
 opts.zinit = 1;
 opts.T2star = [];
+opts.T2prepTE = 0;
 opts.nPE = [];
 opts.nPartitions = 32;
 opts.effectiveEcho = [];
@@ -55,6 +56,8 @@ for ii = 1:2:numel(varargin)
             opts.zinit = value;
         case {'t2star','t2s','t2prime'}
             opts.T2star = value;
+        case {'t2prep','t2prepte','t2preparation'}
+            opts.T2prepTE = value;
         case {'npe','etl','echotrainlength'}
             opts.nPE = value;
         case {'npartitions','nz','nslices'}
@@ -115,7 +118,12 @@ N = 3*(kmax+1);
 FF = zeros(N,1);
 FF(3) = opts.zinit;
 
-FF = flair_prep(FF,TI,T1,T2,kmax);
+% Dynamic FLAIR preparation in EPG states:
+% 1) optional T2 prep attenuates Mz before inversion,
+% 2) invert with a 180 degree RF pulse,
+% 3) relax during TI with T1 and T2,
+% 4) excite with the imaging flip angle.
+[FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,opts.T2prepTE);
 Mz_before_excitation = real(FF(3));
 
 FF = apply_rf(FF,RF_rot(alpha,phi),kmax);
@@ -128,7 +136,7 @@ F = zeros(N,nPE);
 F0 = zeros(1,nPE);
 
 for echo = 1:nPE
-   
+    %one EPI echo is represented as a balanced gradient echo:dephase for half ESP, rephase for half ESP, then record F0.
     FF = relax_epg(FF,0.5*ESP,T1,T2star,kmax);
     FF = Splus*FF;
     FF = relax_epg(FF,0.5*ESP,T1,T2star,kmax);
@@ -166,11 +174,14 @@ info.echoNumber = echoNumber;
 info.effectiveEcho = effectiveEcho;
 info.effectiveTE = echoTimes(effectiveEcho);
 info.T2star = T2star;
+info.T2prepTE = opts.T2prepTE;
+info.MzAfterT2Prep = prepInfo.MzAfterT2Prep;
+info.MzAfterInversion = prepInfo.MzAfterInversion;
 info.MzBeforeExcitation = Mz_before_excitation;
 info.MxyAfterExcitation = Mxy_after_excitation;
 info.MzAfterExcitation = Mz_after_excitation;
 info.kmax = kmax;
-info.FLAIRPrep = 'dynamic EPG inversion pulse plus TI relaxation with T1/T2';
+info.FLAIRPrep = 'dynamic EPG T2 prep, inversion pulse, and TI relaxation with T1/T2';
 info.EPIReadout = 'dynamic EPG balanced dephase/rephase echo loop';
 info.kyOrder = kyOrder;
 info.kzOrder = kzOrder;
@@ -233,8 +244,8 @@ F = zeros([N np-1]);
 FF = zeros([N 1]);
 FF(3) = opts.zinit;
 
-if TI > 0
-    FF = flair_prep(FF,TI,T1,T2,kmax);
+if TI > 0 || opts.T2prepTE > 0
+    [FF,~] = flair_prep(FF,TI,T1,T2,kmax,opts.T2prepTE);
 end
 
 A = RF_rot(alpha(1),phi(1));
@@ -274,13 +285,30 @@ Zn = F(3:3:end,:);
     end
 end
 
-function FF = flair_prep(FF,TI,T1,T2,kmax)
-if TI <= 0
-    return
+function [FF,prepInfo] = flair_prep(FF,TI,T1,T2,kmax,T2prepTE)
+if nargin < 6 || isempty(T2prepTE)
+    T2prepTE = 0;
 end
+if T2prepTE < 0
+    error('T2prepTE must be zero or positive.');
+end
+
+if T2prepTE > 0
+    T2prepDecay = exp(-T2prepTE/T2);
+    for k = 0:kmax
+        idx = 3*k + (1:3);
+        FF(idx(3)) = T2prepDecay*FF(idx(3));
+    end
+end
+prepInfo.MzAfterT2Prep = real(FF(3));
+
 Ainv = RF_rot(pi,0);
 FF = apply_rf(FF,Ainv,kmax);
-FF = relax_epg(FF,TI,T1,T2,kmax);
+prepInfo.MzAfterInversion = real(FF(3));
+
+if TI > 0
+    FF = relax_epg(FF,TI,T1,T2,kmax);
+end
 end
 
 function Tap = RF_rot(a,p)
