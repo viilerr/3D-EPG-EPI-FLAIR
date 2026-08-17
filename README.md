@@ -7,7 +7,7 @@ workflow.
 
 - `EPG_FLAIR.m` simulates either the original FLAIR-prepared TSE pathway or
 a 3D FLAIR EPI pathway selected with `'sequence','epi3d'`.
-- `testrun.m` runs the FLAIR EPI checks for WM, GM, and CSF and shows all
+- `Test_EPG_FLAIR_Explained.m` runs the FLAIR EPI checks for WM, GM, and CSF and shows all
 plots in one figure window.
 
 ## 3D FLAIR EPI model
