@@ -29,7 +29,7 @@ refocused by 180 degree pulses.
 - The EPG state vector is updated during the sequence: inversion pulse, TI
 relaxation, excitation pulse, then each EPI echo.
 - The returned `Fn` output is a ky-kz matrix for the 3D k-space weighting.
-- `testrun.m` also builds a 2D 64 x 3 EPI example: 64 signal values from the
+- `Test_EPG_FLAIR_Explained.m` also builds a 2D 64 x 3 EPI example: 64 signal values from the
 WM/GM echo trains are repeated over 3 segments to fill 192 zigzag k-space
 lines, then a 2D PSF is calculated from that filled k-space.
 
@@ -43,7 +43,7 @@ Example:
 
 ## Figure guide
 
-`testrun.m` uses `T2prepTE = 50 ms`, so the recovery curves do not start at
+`Test_EPG_FLAIR_Explained.m` uses `T2prepTE = 50 ms`, so the recovery curves do not start at
 `-1`. The T2-prep block attenuates longitudinal magnetisation by
 `exp(-T2prepTE/T2)` before inversion, then inversion flips it negative. With
 the current tissue values:
